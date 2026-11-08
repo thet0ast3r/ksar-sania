@@ -133,34 +133,123 @@ function house(add, rects, { x, z, w, d, h, color = C.house, door = true }) {
   rects.push({ x, z, hw: w / 2 + 0.3, hd: d / 2 + 0.3, h: h + 1 })
 }
 
+export const KASBAH = { kx: 0, kz: -4, S: 19, H: 6.8, T: 1.9, gate: 3.8, gateH: 3.9 }
+export const CLIMB_PALM = { x: -4.6, z: 1.4, h: 12.5 }
+
+function halfDisc(r, d, x, y, z) {
+  const g = new THREE.CylinderGeometry(r, r, d, 22, 1, false, 0, Math.PI)
+  g.rotateX(Math.PI / 2)
+  g.rotateZ(Math.PI / 2)
+  g.translate(x, y, z)
+  return prep(g)
+}
+
 export function buildKsar() {
   const { add, done } = bucket()
-  const rects = []
+  const rects = [], vrects = [], prects = [], platforms = [], circles = []
+  const { kx, kz, S, H, T, gate, gateH } = KASBAH
+  const zf = kz + S / 2 - T / 2, zb = kz - S / 2 + T / 2, xr = kx + S / 2 - T / 2, xl = kx - S / 2 + T / 2
 
-  const kx = 0, kz = -4, S = 19, H = 6.8, T = 1.9
-  add(C.wall, rbox(S, H, T, kx, 0, kz + S / 2 - T / 2, { r: 0.6 }))
-  add(C.wall, rbox(S, H, T, kx, 0, kz - S / 2 + T / 2, { r: 0.6 }))
-  add(C.wall, rbox(T, H, S, kx + S / 2 - T / 2, 0, kz, { r: 0.6 }))
-  add(C.wall, rbox(T, H, S, kx - S / 2 + T / 2, 0, kz, { r: 0.6 }))
-  const e = S / 2 - T / 2, m = S / 2 - 3.4
-  merlonRow(add, C.wall, kx - m, kz + e, kx + m, kz + e, H, 2.0)
-  merlonRow(add, C.wall, kx - m, kz - e, kx + m, kz - e, H, 2.0)
-  merlonRow(add, C.wall, kx - e, kz - m, kx - e, kz + m, H, 2.0)
-  merlonRow(add, C.wall, kx + e, kz - m, kx + e, kz + m, H, 2.0)
-  add(C.trim, rbox(S - 6, 0.45, 0.3, kx, H - 1.4, kz + S / 2 + 0.05, { r: 0.12 }))
-  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) tower(add, kx + dx * S / 2, kz + dz * S / 2)
-  archDoor(add, kx, kz + S / 2, 2.6, 3.0)
-  for (const o of [-4.5, 4.5]) win(add, kx + o, 3.6, kz + S / 2, 0.8, 1.1, 0.5)
+  // walls (front one has an open gate)
+  add(C.wall, rbox(S, H, T, kx, 0, zb, { r: 0.6 }))
+  add(C.wall, rbox(T, H, S, xr, 0, kz, { r: 0.6 }))
+  add(C.wall, rbox(T, H, S, xl, 0, kz, { r: 0.6 }))
+  const segW = (S - gate) / 2
+  for (const s of [-1, 1]) {
+    add(C.wall, rbox(segW, H, T, kx + s * (gate / 2 + segW / 2), 0, zf, { r: 0.6 }))
+    rects.push({ x: kx + s * (gate / 2 + segW / 2), z: zf, hw: segW / 2, hd: T / 2, h: H })
+  }
+  add(C.wall, rbox(gate + 0.8, H - gateH, T, kx, gateH, zf, { r: 0.3 }))
+  for (const side of [1, -1]) {
+    const zz = zf + side * (T / 2 + 0.02)
+    add(C.trim, halfDisc(gate / 2 + 0.55, 0.16, kx, gateH, zz))
+    add('#2a150b', halfDisc(gate / 2, 0.22, kx, gateH, zz))
+    for (const s of [-1, 1]) add(C.trim, rbox(0.55, gateH, 0.16, kx + s * (gate / 2 + 0.27), 0, zz, { r: 0.05 }))
+  }
+  rects.push({ x: kx, z: zb, hw: S / 2, hd: T / 2, h: H })
+  rects.push({ x: xr, z: kz, hw: T / 2, hd: S / 2, h: H })
+  rects.push({ x: xl, z: kz, hw: T / 2, hd: S / 2, h: H })
+
+  // merlons along the OUTER edge so the rampart walk stays free
+  const eo = S / 2 - 0.5, m = S / 2 - 3.4
+  merlonRow(add, C.wall, kx - m, kz + eo, kx + m, kz + eo, H, 2.0)
+  merlonRow(add, C.wall, kx - m, kz - eo, kx + m, kz - eo, H, 2.0)
+  merlonRow(add, C.wall, kx - eo, kz - m, kx - eo, kz + m, H, 2.0)
+  merlonRow(add, C.wall, kx + eo, kz - m, kx + eo, kz + m, H, 2.0)
+  add(C.trim, rbox(S - 6, 0.45, 0.3, kx, H - 1.0, kz + S / 2 + 0.05, { r: 0.12 }))
+
+  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    tower(add, kx + dx * S / 2, kz + dz * S / 2)
+    rects.push({ x: kx + dx * S / 2, z: kz + dz * S / 2, hw: 2.75, hd: 2.75, h: 13.5 })
+  }
+  for (const o of [-5.5, 5.5]) win(add, kx + o, 3.6, kz + S / 2, 0.8, 1.1, 0.5)
   for (const o of [-4, 0, 4]) {
     win(add, kx + S / 2, 3.6, kz + o, 0.5, 1.1, 0.8)
     win(add, kx - S / 2, 3.6, kz + o, 0.5, 1.1, 0.8)
   }
-  // keep
+
+  // keep (back of the courtyard)
   add(C.house2, rbox(8, 9.5, 7, kx - 1, 0, kz - 3.5, { r: 0.5 }))
   add(C.house2, rbox(8.5, 0.7, 7.5, kx - 1, 9.2, kz - 3.5, { r: 0.3 }))
   merlonRow(add, C.house2, kx - 4.6, kz + 0.1, kx + 2.6, kz + 0.1, 9.9, 1.8)
-  for (const o of [-2.4, 0, 2.4]) win(add, kx - 1 + o, 7.2, kz, 0.7, 1.0, 0.4)
-  rects.push({ x: kx, z: kz, hw: S / 2 + 2.0, hd: S / 2 + 2.0, h: 14 })
+  for (const o of [-2.4, 0, 2.4]) win(add, kx - 1 + o, 7.0, kz, 0.7, 1.0, 0.4)
+  for (const o of [-2.6, 2.6]) win(add, kx - 1 + o, 2.4, kz, 0.7, 1.0, 0.4)
+  archDoor(add, kx - 1, kz, 1.6, 2.2)
+  rects.push({ x: kx - 1, z: kz - 3.5, hw: 4.15, hd: 3.65, h: 10.5 })
+
+  // courtyard floor + zellige around the fountain
+  const inner = S - 2 * T
+  add('#d7a06c', rbox(inner, 0.1, inner, kx, -0.06, kz, { r: 0.04 }))
+  const fx = kx + 1.2, fz = kz + 4.3
+  for (let i = -3; i <= 3; i++)
+    for (let j = -3; j <= 3; j++)
+      add((i + j) % 2 === 0 ? C.tile : '#efe0bf', rbox(0.78, 0.05, 0.78, fx + i * 0.8, 0.0, fz + j * 0.8, { r: 0.02 }))
+  // fountain
+  add(C.tile, cyl(1.55, 1.65, 0.7, 8, [fx, 0.35, fz]))
+  add('#efe0bf', cyl(1.72, 1.72, 0.16, 8, [fx, 0.76, fz]))
+  add('#56b8cf', cyl(1.38, 1.38, 0.06, 16, [fx, 0.66, fz]))
+  add('#efe0bf', cyl(0.22, 0.32, 1.3, 10, [fx, 1.0, fz]))
+  add(C.tile, cyl(0.72, 0.26, 0.32, 10, [fx, 1.78, fz]))
+  add('#56b8cf', cyl(0.62, 0.62, 0.05, 14, [fx, 1.92, fz]))
+  circles.push({ x: fx, z: fz, r: 1.8 })
+
+  // tea corner
+  const tx = kx + 4.3, tz = kz + 1.5
+  add('#e0b050', rbox(2.7, 0.04, 2.0, tx, 0.0, tz, { r: 0.02 }))
+  add('#a8322a', rbox(2.4, 0.05, 1.7, tx, 0.01, tz, { r: 0.02 }))
+  add(C.wood, cyl(0.12, 0.14, 0.32, 8, [tx, 0.2, tz]))
+  add(C.wood, cyl(0.48, 0.48, 0.08, 14, [tx, 0.4, tz]))
+  add('#c7ccd3', sphere(0.15, [tx, 0.56, tz], [1, 0.85, 1]))
+  add('#c7ccd3', cyl(0.02, 0.03, 0.2, 6, [tx + 0.17, 0.6, tz], [0, 0, -0.9]))
+  for (const [ox, oz] of [[0.25, 0.2], [-0.2, 0.25], [-0.15, -0.25]]) add('#e9c25a', cyl(0.045, 0.04, 0.1, 8, [tx + ox, 0.49, tz + oz]))
+  for (const [ox, oz, c] of [[-1.0, 0.0, '#2e6f9e'], [1.0, 0.0, '#d8a640'], [0, 0.85, '#8a3a7a'], [0, -0.85, '#2e8f6c']])
+    add(c, rbox(0.7, 0.26, 0.7, tx + ox, 0.03, tz + oz, { r: 0.12 }))
+
+  // lanterns
+  const lantern = (x, y, z) => {
+    add(GLOW, rbox(0.34, 0.5, 0.34, x, y, z, { r: 0.06 }))
+    add(C.dark, taper(0.42, 0.1, 0.28, x, y + 0.5, z))
+    add(C.dark, rbox(0.4, 0.06, 0.4, x, y - 0.04, z, { r: 0.02 }))
+  }
+  lantern(kx - S / 2 + T + 0.25, 3.2, kz + 0.5)
+  lantern(kx - S / 2 + T + 0.25, 3.2, kz - 6)
+  lantern(kx - 3.2, 3.2, kz + S / 2 - T - 0.25)
+  lantern(kx + 3.2, 3.2, kz + S / 2 - T - 0.25)
+  lantern(kx - 4.0, 3.0, kz + 0.25)
+  lantern(kx + 2.0, 3.0, kz + 0.25)
+
+  // stairs up to the right-hand rampart
+  const N = 12, stepD = 0.9, sx1 = kx + S / 2 - T, sx0 = sx1 - 1.75
+  const scx = (sx0 + sx1) / 2, shw = (sx1 - sx0) / 2, z0 = kz + S / 2 - T - 0.6
+  for (let i = 0; i < N; i++) {
+    const top = ((i + 1) * H) / N
+    const zc = z0 - stepD * i - stepD / 2
+    add('#d48650', rbox(sx1 - sx0, top, stepD + 0.02, scx, 0, zc, { r: 0.08 }))
+    platforms.push({ x: scx, z: zc, hw: shw, hd: stepD / 2, top })
+  }
+  vrects.push({ x: scx, z: z0 - (N * stepD) / 2, hw: shw, hd: (N * stepD) / 2, h: H })
+  platforms.push({ x: xr, z: kz, hw: T / 2 + 0.05, hd: S / 2 - 2.7, top: H })
+  prects.push({ x: kx + S / 2 - 0.25, z: kz, hw: 0.25, hd: S / 2, h: H + 1.4 })
 
   const houses = [
     { x: -16.5, z: 3, w: 7, d: 5.5, h: 5 },
@@ -191,16 +280,16 @@ export function buildKsar() {
   }
   rects.push({ x: mx, z: mz, hw: mw / 2 + 0.4, hd: mw / 2 + 0.4, h: 20 })
 
-  // garden walls
-  const gw = [
-    [-13, 10, 10, 1.1], [-18.5, 7.5, 1.1, 6], [17, 10, 11, 1.1], [22.5, 7.5, 1.1, 5.5]
-  ]
+  const gw = [[-13, 10, 10, 1.1], [-18.5, 7.5, 1.1, 6], [17, 10, 11, 1.1], [22.5, 7.5, 1.1, 5.5]]
   for (const [x, z, w, d] of gw) {
     add(C.wall, rbox(w, 1.7, d, x, 0, z, { r: 0.45 }))
     rects.push({ x, z, hw: w / 2, hd: d / 2, h: 2 })
   }
-  return { parts: done(), rects }
+
+  const rampartDates = [[xr, kz + 1.5], [xr, kz - 4.5]].map(([x, z]) => new THREE.Vector3(x, H + 1.4, z))
+  return { parts: done(), rects, vrects, prects, platforms, circles, rampartDates }
 }
+
 
 /* ---------- palms ---------- */
 
@@ -315,14 +404,53 @@ export function buildCarParts() {
   return done()
 }
 
-export function buildWheelParts(r, w) {
+export function buildWheelParts(r, w, { rim = SILVER, rimR = 0.58, spokes = 0 } = {}) {
   const { add, done } = bucket()
-  add(TIRE, cyl(r, r, w, 20, [0, 0, 0], [Math.PI / 2, 0, 0]))
-  add(TIRE, cyl(r * 1.04, r * 1.04, w * 0.55, 20, [0, 0, 0], [Math.PI / 2, 0, 0]))
-  add(SILVER, cyl(r * 0.58, r * 0.58, w + 0.03, 8, [0, 0, 0], [Math.PI / 2, 0, 0]))
-  add(BLACK, rbox(r * 0.25, r * 1.0, w + 0.05, 0, -r * 0.5, 0, { r: 0.02 }))
+  add(TIRE, cyl(r, r, w, 22, [0, 0, 0], [Math.PI / 2, 0, 0]))
+  add(TIRE, cyl(r * 1.04, r * 1.04, w * 0.55, 22, [0, 0, 0], [Math.PI / 2, 0, 0]))
+  add(spokes ? '#55585e' : rim, cyl(r * rimR, r * rimR, w + 0.03, 16, [0, 0, 0], [Math.PI / 2, 0, 0]))
+  if (spokes) {
+    for (let i = 0; i < spokes; i++) {
+      const a = (i / spokes) * Math.PI * 2
+      add(rim, xf(rbox(r * 0.14, r * rimR * 0.95, w + 0.06, 0, 0, 0, { r: 0.02 }), [0, 0, 0], [0, 0, -a]))
+    }
+    add(rim, cyl(r * 0.16, r * 0.16, w + 0.08, 10, [0, 0, 0], [Math.PI / 2, 0, 0]))
+  } else add(BLACK, rbox(r * 0.25, r * 1.0, w + 0.05, 0, -r * 0.5, 0, { r: 0.02 }))
   return done()
 }
+
+export function buildSuvParts() {
+  const { add, done } = bucket()
+  const PAINT = '#24262d', GLASS = '#1a2633', CHROME = '#d5d9df'
+  add(PAINT, extrude([
+    [-2.27, 0.5], [2.22, 0.5], [2.32, 0.74], [2.27, 0.96], [1.35, 1.1],
+    [0.55, 1.52], [-1.6, 1.55], [-2.17, 1.3], [-2.32, 0.95]
+  ], 1.62, 0.16))
+  add(GLASS, extrude([[1.28, 1.17], [0.6, 1.58], [-1.58, 1.61], [-2.1, 1.36], [-2.16, 1.17]], 2.0, 0))
+  add(PAINT, rbox(0.16, 0.5, 2.04, -0.35, 1.13, 0, { r: 0.05 }))
+  add(PAINT, rbox(0.22, 0.48, 2.04, -1.45, 1.14, 0, { r: 0.05 }))
+  add(CHROME, rbox(3.5, 0.04, 2.03, -0.45, 1.13, 0, { r: 0.015 }))
+  add(GLASS, xf(prep(new THREE.BoxGeometry(0.9, 0.05, 1.58)), [1.03, 1.46, 0], [0, 0, Math.atan2(0.42, -0.8) - Math.PI]))
+  add(GLASS, xf(prep(new THREE.BoxGeometry(0.62, 0.05, 1.5)), [-1.94, 1.58, 0], [0, 0, Math.atan2(-0.25, -0.57) - Math.PI]))
+  for (const x of [-1.45, 1.45]) add(PAINT, cyl(0.66, 0.66, 2.0, 22, [x, 0.45, 0], [Math.PI / 2, 0, 0]))
+  add('#141518', rbox(4.7, 0.22, 2.0, 0, 0.3, 0, { r: 0.1 }))
+  add(CHROME, rbox(3.0, 0.05, 2.02, 0, 0.5, 0, { r: 0.02 }))
+  // big chrome-barred grille + slim LED lights
+  add('#0d0e10', rbox(0.14, 0.4, 1.3, 2.38, 0.5, 0, { r: 0.06 }))
+  for (const y of [0.6, 0.7, 0.8]) add(CHROME, rbox(0.16, 0.035, 1.32, 2.39, y, 0, { r: 0.012 }))
+  add(CHROME, rbox(0.16, 0.12, 0.2, 2.42, 0.62, 0, { r: 0.05 }))
+  for (const z of [-0.66, 0.66]) {
+    add(LAMP, rbox(0.1, 0.11, 0.42, 2.33, 0.84, z, { r: 0.04 }))
+    add('#d8342c', rbox(0.1, 0.12, 0.42, -2.36, 1.02, z * 1.0, { r: 0.04 }))
+    add(PAINT, rbox(0.22, 0.16, 0.26, 1.15, 1.13, z * 1.62, { r: 0.06 }))
+    add(CHROME, rbox(2.4, 0.07, 0.08, -0.55, 1.73, z * 1.08, { r: 0.03 }))
+  }
+  add('#d8342c', rbox(0.08, 0.04, 0.9, -2.37, 1.04, 0, { r: 0.015 }))
+  add(CHROME, rbox(0.12, 0.08, 1.2, -2.35, 0.48, 0, { r: 0.03 }))
+  for (const z of [-0.4, 0.4]) add(CHROME, cyl(0.05, 0.05, 0.12, 10, [-2.4, 0.42, z], [0, 0, Math.PI / 2]))
+  return done()
+}
+
 
 export function buildQuadParts() {
   const { add, done } = bucket()
@@ -437,7 +565,7 @@ export function buildDateCluster() {
 export const PALMS = [
   [-9.5, 10, 8.5, 0.18, 0.3], [-21, 9, 9.5, -0.2, 1.1], [-27, 4, 7, 0.25, 2.2],
   [11.5, 11, 9, -0.15, 0.7], [22, 7, 8, 0.22, 1.9], [29, -9, 10, 0.2, 3.1],
-  [-30, -11, 9, -0.18, 4.2], [3.5, -2, 7.5, 0.12, 5.1], [-4, -7, 6.5, -0.15, 0.9],
+  [-30, -11, 9, -0.18, 4.2],
   [-33, 12, 7.5, 0.15, 2.7], [33, 4, 7, -0.2, 3.7], [13, -15, 8.5, 0.2, 1.4],
   [-45, 30, 8, 0.2, 6.1], [-52, 26, 9, -0.15, 2.4], [48, 28, 8.5, 0.18, 3.3]
 ]

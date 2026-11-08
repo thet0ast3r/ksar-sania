@@ -70,10 +70,19 @@
     input.hand = v
   }
 
+  const inVehicle = $derived(['car', 'quad', 'suv'].includes(hud.mode))
   const actionLabel = $derived(
-    hud.mode !== 'foot' ? 'Exit' : hud.near === 'car' ? 'Drive' : hud.near === 'quad' ? 'Ride' : null
+    hud.mode === 'climb' ? 'Let go'
+    : inVehicle ? 'Exit'
+    : hud.near === 'car' ? 'Duster'
+    : hud.near === 'suv' ? 'Touareg'
+    : hud.near === 'quad' ? 'Quad'
+    : hud.near === 'palm' ? 'Climb'
+    : null
   )
-  const actionIcon = $derived(hud.mode !== 'foot' ? '🚶' : hud.near === 'car' ? '🚙' : '🏍️')
+  const actionIcon = $derived(
+    hud.mode === 'climb' ? '🪂' : inVehicle ? '🚶' : hud.near === 'quad' ? '🏍️' : hud.near === 'palm' ? '🌴' : '🚙'
+  )
 </script>
 
 <main
@@ -118,7 +127,7 @@
     {#key hud.toastId}<div class="toast">{hud.toast}</div>{/key}
   {/if}
 
-  {#if hud.mode !== 'foot'}
+  {#if inVehicle}
     <div class="speed"><b>{hud.speed}</b> km/h</div>
   {/if}
 
@@ -127,12 +136,12 @@
     <div class="joywrap"><Joystick /></div>
   {/if}
   <div class="btns">
-    {#if hud.mode !== 'foot'}
+    {#if inVehicle}
       <button class="b small" onpointerdown={press('reset')} aria-label="Flip upright">↺</button>
       {#if touch}
         <button class="b" onpointerdown={hold(true)} onpointerup={hold(false)} onpointercancel={hold(false)} onpointerleave={hold(false)}>Drift</button>
       {/if}
-    {:else if touch}
+    {:else if touch && hud.mode === 'foot'}
       <button class="b" onpointerdown={press('jump')}>Jump</button>
     {/if}
     {#if actionLabel}
@@ -150,7 +159,8 @@
         <h1>Ksar Sania</h1>
         <p class="sub">Merzouga · Erg Chebbi</p>
         <ul>
-          <li>🚶 Walk to the white <b>Duster</b> or the yellow <b>quad</b> and hop in.</li>
+          <li>🚶 Pick a ride: white <b>Duster</b>, yellow <b>quad</b> or the black <b>Touareg</b> (the beast).</li>
+          <li>🏰 Walk through the kasbah gate, climb the stairs to the ramparts and up the courtyard palm.</li>
           <li>🌴 Hunt the <b>Datteln</b> scattered across the dunes. Follow the ▲ arrow and the golden beams.</li>
           <li>🌙 Drag the time slider all the way into the night.</li>
           <li>{touch ? '🕹️ Left stick moves/steers, drag the view to look around.' : '⌨️ WASD to move, E to enter, Space for the handbrake.'}</li>
