@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
-// 3-step ramp = the "comic" cel-shading look
-const ramp = new Uint8Array([105, 185, 255])
+// soft 3-step ramp → chunky cel look without outlines
+const ramp = new Uint8Array([135, 200, 255])
 export const gradientMap = new THREE.DataTexture(ramp, ramp.length, 1, THREE.RedFormat)
 gradientMap.minFilter = THREE.NearestFilter
 gradientMap.magFilter = THREE.NearestFilter
@@ -16,3 +16,7 @@ export function toon(color, vertexColors = false) {
   }
   return cache.get(key)
 }
+
+/** special colours whose emissive we drive at night */
+export const GLOW = '#3b1e0f' // lit windows
+export const LAMP = '#fff4c0' // headlights
